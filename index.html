@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700"
+      rel="stylesheet"
+    />
+    <!-- Mapbox GL JS -->
+    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+    <link
+      href="https://api.tiles.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <!-- Geocoder plugin -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.0/mapbox-gl-geocoder.css"
+      type="text/css"
+    />
+    <!-- Turf.js plugin -->
+    <script src="https://npmcdn.com/@turf/turf/turf.min.js"></script>
+    <style>
+      body {
+        color: #404040;
+        font:
+          400 15px/22px 'Source Sans Pro',
+          'Helvetica Neue',
+          sans-serif;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      .sidebar {
+        position: absolute;
+        width: 33.3333%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        overflow: hidden;
+        border-right: 1px solid rgb(0 0 0 / 25%);
+      }
+
+      .map {
+        position: absolute;
+        left: 33.3333%;
+        width: 66.6666%;
+        top: 0;
+        bottom: 0;
+      }
+
+      h1 {
+        font-size: 22px;
+        margin: 0;
+        font-weight: 400;
+        line-height: 20px;
+        padding: 20px 2px;
+      }
+
+      a {
+        color: #404040;
+        text-decoration: none;
+      }
+
+      a:hover {
+        color: #101010;
+      }
+
+      .heading {
+        background: #fff;
+        border-bottom: 1px solid #eee;
+        min-height: 60px;
+        line-height: 60px;
+        padding: 0 10px;
+        background-color: #fcb6d2;
+        color: #fff;
+      }
+
+      .listings {
+        background-color: #fff;
+        height: 100%;
+        overflow: auto;
+        padding-bottom: 60px;
+      }
+
+      .listings .item {
+        display: block;
+        border-bottom: 1px solid #eee;
+        padding: 10px;
+        text-decoration: none;
+      }
+
+      .listings .item:last-child {
+        border-bottom: none;
+      }
+
+      .listings .item .title {
+        display: block;
+        color: #fcb6d2;
+        font-weight: 700;
+      }
+
+      .listings .item .title small {
+        font-weight: 400;
+      }
+
+      .listings .item.active .title,
+      .listings .item .title:hover {
+        color: #fcb6d2;
+      }
+
+      .listings .item.active {
+        background-color: #f8f8f8;
+      }
+
+      ::-webkit-scrollbar {
+        width: 3px;
+        height: 3px;
+        border-left: 0;
+        background: rgb(0 0 0 / 10%);
+      }
+
+      ::-webkit-scrollbar-track {
+        background: none;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #fcb6d2;
+        border-radius: 0;
+      }
+
+      /* Marker tweaks */
+      .mapboxgl-popup {
+        padding-bottom: 10px;
+      }
+
+      .mapboxgl-popup-close-button {
+        display: none;
+      }
+
+      .mapboxgl-popup-content {
+        font:
+          400 15px/22px 'Source Sans Pro',
+          'Helvetica Neue',
+          sans-serif;
+        padding: 0;
+        width: 150px;
+      }
+
+      .mapboxgl-popup-content h3 {
+        background: #fcb6d2;
+        color: #fff;
+        margin: 0;
+        padding: 10px;
+        border-radius: 3px 3px 0 0;
+        font-weight: 700;
+        margin-top: -15px;
+      }
+
+      .mapboxgl-popup-content h4 {
+        margin: 0;
+        padding: 10px;
+        font-weight: 400;
+      }
+
+      .mapboxgl-popup-content div {
+        padding: 10px;
+      }
+
+      .mapboxgl-popup-anchor-top > .mapboxgl-popup-content {
+        margin-top: 15px;
+      }
+
+      .mapboxgl-popup-anchor-top > .mapboxgl-popup-tip {
+        border-bottom-color: #fcb6d2;
+      }
+
+      .mapboxgl-ctrl-geocoder {
+        border-radius: 0;
+        position: relative;
+        top: 0;
+        width: 800px;
+        margin-top: 0;
+        border: 0;
+      }
+
+      .mapboxgl-ctrl-geocoder > div {
+        min-width: 100%;
+        margin-left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <div class="heading">
+        <h1>Blank Slate Product Locations</h1>
+      </div>
+      <div id="listings" class="listings"></div>
+    </div>
+    <div id="map" class="map"></div>
+    <script>
+      mapboxgl.accessToken = 'pk.eyJ1IjoiYmxhbmtzbGF0ZWNyZWFtZXJ5IiwiYSI6ImNsbmRobG5meDA0aXYybWxleWk4c3hpY24ifQ.zoKXAD2ShCChW-mHZED8Xw';
+
+      /**
+       * Add the map to the page
+       */
+      const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/blankslatecreamery/clndjlfl607qv01phgnga06nx',
+        center: [-83.748482, 42.281422],
+        zoom: 10.7,
+        scrollZoom: false
+      });
+
+      const stores = {
+        'type': 'FeatureCollection',
+        'features': [
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.7764864, 42.2720415]
+            },
+            'properties': {
+              'address': '2103 W Stadium Blvd., Ann Arbor, MI 48103',
+              'productType': 'Pints',
+              'storeName': 'Arbor Farms Market',
+              'city': 'Ann Arbor',
+              'postalCode': '48103',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/Pzji6kf3bq6suJbE6'
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.7521094, 42.2789795]
+            },
+            'properties': {
+              'address': '325 W Liberty St., Ann Arbor, MI 48103',
+              'productType': 'Pints',
+              'storeName': 'Argus Farm Stop - Liberty',
+              'city': 'Ann Arbor',
+              'postalCode': '48103',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/ZiDvkm9zt8kkrAGV8'
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.7348589,42.2653378]
+            },
+            'properties': {
+              'address': '1226 Packard St., Ann Arbor, MI 48104',
+              'storeName': 'Argus Farm Stop - Packard Market',
+              'productType': 'Pints',
+              'city': 'Ann Arbor',
+              'postalCode': '48104',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/bXkJmxTMsBjb3Y4B9'
+
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.75134988591368, 42.27971577446359]
+            },
+            'properties': {
+              'address': '300 W. Liberty Street, Ann Arbor, MI 48103',
+              'storeName': 'Blank Slate Creamery Ann Arbor',
+              'productType': 'Full Service - Flagship Store',
+              'city': 'Ann Arbor',
+              'postalCode': '48103',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/9H9JdFS8wDHESZQ6A'
+
+            }
+          },
+          
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.7802898, 42.5292746]
+            },
+            'properties': {
+              'address': '126 E. Grand River Ave., Brighton, MI 48116',
+              'storeName': 'Blank Slate Creamery Brighton',
+              'productType': 'Full Service',
+              'city': 'Brighton',
+              'postalCode': '48116',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/f5WVYsbhhKXE71398'
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.88509837301682,42.29373227128573]
+            },
+            'properties': {
+              'address': '7879 STE C, Jackson Rd., Ann Arbor, MI 48103',
+              'storeName': 'Blank Slate Creamery Jackson Road',
+              'productType': 'Pint Carry-out',
+              'city': 'Ann Arbor',
+              'postalCode': '48103',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/Q55sYLfqBAkYUV557'
+
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.80927404653147, 42.567400490391606]
+            },
+            'properties': {
+              'address': '7300 Grand River Ave., Brighton, MI 48114',
+              'storeName': 'Simply Fresh Market',
+              'productType': 'Pints',
+              'city': 'Brighton',
+              'postalCode': '48114',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/44tsiKYewtzMvBXM7'
+
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.7462301532896, 42.28433371939251]
+            },
+            'properties': {
+              'address': '407 N. 5th Ave., Ann Arbor, MI 48104',
+              'storeName': 'Sparrow Meat Market',
+              'productType': 'Ice Cream Cookie Sandwiches, Pints',
+              'city': 'Ann Arbor',
+              'postalCode': '48104',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/UW48ddSqJM338shU7'
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.73633458635386, 42.25994722457734]
+            },
+            'properties': {
+              'address': '1919 S. Industrial Hwy STE C, Ann Arbor, MI 48104',
+              'storeName': 'Venue Market and Cafe',
+              'productType': 'Pints',
+              'city': 'Ann Arbor',
+              'postalCode': '48104',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/S1wmLLMcyHVBovPU8'
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.60844129072257, 42.24535658581283]
+            },
+            'properties': {
+              'address': '7312 N River St., Ypsilanti, MI 48198',
+              'storeName': 'Ypsilanti Food Co-op',
+              'productType': 'Pints',
+              'city': 'Ypsilanti',
+              'postalCode': '48198',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/RwVtnw3kZoB719x66'
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.72796210236362, 42.25777017825699]
+            },
+            'properties': {
+              'address': '1928 Packard St., Ann Arbor, MI 48104',
+              'storeName': 'YORK Food and Drink',
+              'productType': 'Affogato, Ice Cream Cookie Sandwiches, Pints',
+              'city': 'Ann Arbor',
+              'postalCode': '48104',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/Jt4azcK3W2rLfFLC8'
+            }
+          },
+
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [-83.87158800236328, 42.26659476318419]
+            },
+            'properties': {
+              'address': '7217 W Liberty Rd., Ann Arbor, MI 48103',
+              'storeName': 'White Lotus Farms',
+              'productType': 'Pints',
+              'city': 'Ann Arbor',
+              'postalCode': '48103',
+              'state': 'MI',
+              'addresslink': 'https://maps.app.goo.gl/BiW36avaocHAQ4QX7'
+            }
+          },
+        ]
+      };
+
+
+
+      /**
+       * Assign a unique id to each store. You'll use this `id`
+       * later to associate each point on the map with a listing
+       * in the sidebar.
+       */
+      stores.features.forEach((store, i) => {
+        store.properties.id = i;
+      });
+
+      /**
+       * Wait until the map loads to make changes to the map.
+       */
+      map.on('load', () => {
+        /**
+         * This is where your '.addLayer()' used to be, instead
+         * add only the source without styling a layer
+         */
+        map.addSource('places', {
+          'type': 'geojson',
+          'data': stores
+        });
+
+        /**
+         * Create a new MapboxGeocoder instance.
+         */
+        const geocoder = new MapboxGeocoder({
+          accessToken: mapboxgl.accessToken,
+          mapboxgl: mapboxgl,
+          marker: true,
+        });
+
+        /**
+         * Add all the things to the page:
+         * - The location listings on the side of the page
+         * - The search box (MapboxGeocoder) onto the map
+         * - The markers onto the map
+         */
+        buildLocationList(stores);
+        map.addControl(geocoder, 'top-left');
+        addMarkers();
+
+        /**
+         * Listen for when a geocoder result is returned. When one is returned:
+         * - Calculate distances
+         * - Sort stores by distance
+         * - Rebuild the listings
+         * - Adjust the map camera
+         * - Open a popup for the closest store
+         * - Highlight the listing for the closest store.
+         */
+        geocoder.on('result', (event) => {
+          /* Get the coordinate of the search result */
+          const searchResult = event.result.geometry;
+
+          /**
+           * Calculate distances:
+           * For each store, use turf.disance to calculate the distance
+           * in miles between the searchResult and the store. Assign the
+           * calculated value to a property called `distance`.
+           */
+          const options = { units: 'miles' };
+          for (const store of stores.features) {
+            store.properties.distance = turf.distance(
+              searchResult,
+              store.geometry,
+              options
+            );
+          }
+
+          /**
+           * Sort stores by distance from closest to the `searchResult`
+           * to furthest.
+           */
+          stores.features.sort((a, b) => {
+            if (a.properties.distance > b.properties.distance) {
+              return 1;
+            }
+            if (a.properties.distance < b.properties.distance) {
+              return -1;
+            }
+            return 0; // a must be equal to b
+          });
+
+          /**
+           * Rebuild the listings:
+           * Remove the existing listings and build the location
+           * list again using the newly sorted stores.
+           */
+          const listings = document.getElementById('listings');
+          while (listings.firstChild) {
+            listings.removeChild(listings.firstChild);
+          }
+          buildLocationList(stores);
+
+          /* Open a popup for the closest store. */
+          createPopUp(stores.features[0]);
+
+          /** Highlight the listing for the closest store. */
+          const activeListing = document.getElementById(
+            `listing-${stores.features[0].properties.id}`
+          );
+          activeListing.classList.add('active');
+
+          /**
+           * Adjust the map camera:
+           * Get a bbox that contains both the geocoder result and
+           * the closest store. Fit the bounds to that bbox.
+           */
+          const bbox = getBbox(stores, 0, searchResult);
+          map.fitBounds(bbox, {
+            padding: 100
+          });
+        });
+      });
+
+      /**
+       * Using the coordinates (lng, lat) for
+       * (1) the search result and
+       * (2) the closest store
+       * construct a bbox that will contain both points
+       */
+      function getBbox(sortedStores, storeIdentifier, searchResult) {
+        const lats = [
+          sortedStores.features[storeIdentifier].geometry.coordinates[1],
+          searchResult.coordinates[1]
+        ];
+        const lons = [
+          sortedStores.features[storeIdentifier].geometry.coordinates[0],
+          searchResult.coordinates[0]
+        ];
+        const sortedLons = lons.sort((a, b) => {
+          if (a > b) {
+            return 1;
+          }
+          if (a.distance < b.distance) {
+            return -1;
+          }
+          return 0;
+        });
+        const sortedLats = lats.sort((a, b) => {
+          if (a > b) {
+            return 1;
+          }
+          if (a.distance < b.distance) {
+            return -1;
+          }
+          return 0;
+        });
+        return [
+          [sortedLons[0], sortedLats[0]],
+          [sortedLons[1], sortedLats[1]]
+        ];
+      }
+
+      /**
+       * Add a marker to the map for every store listing.
+       **/
+      function addMarkers() {
+        /* For each feature in the GeoJSON object above: */
+        for (const marker of stores.features) {
+          /* Create a div element for the marker. */
+          const el = document.createElement('div');
+          /* Assign a unique `id` to the marker. */
+          el.id = `marker-${marker.properties.id}`;
+          /* Assign the `marker` class to each marker for styling. */
+          el.className = 'marker';
+
+          /**
+           * Create a marker using the div element
+           * defined above and add it to the map.
+           **/
+          new mapboxgl.Marker(el, { offset: [0, -23] })
+            .setLngLat(marker.geometry.coordinates)
+            .addTo(map);
+
+          /**
+           * Listen to the element and when it is clicked, do three things:
+           * 1. Fly to the point
+           * 2. Close all other popups and display popup for clicked store
+           * 3. Highlight listing in sidebar (and remove highlight for all other listings)
+           **/
+          el.addEventListener('click', (e) => {
+            flyToStore(marker);
+            createPopUp(marker);
+            const activeItem = document.getElementsByClassName('active');
+            e.stopPropagation();
+            if (activeItem[0]) {
+              activeItem[0].classList.remove('active');
+            }
+            const listing = document.getElementById(
+              `listing-${marker.properties.id}`
+            );
+            listing.classList.add('active');
+          });
+        }
+      }
+
+      /**
+       * Add a listing for each store to the sidebar.
+       **/
+      function buildLocationList(stores) {
+        for (const store of stores.features) {
+          /* Add a new listing section to the sidebar. */
+          const listings = document.getElementById('listings');
+          const listing = listings.appendChild(document.createElement('div'));
+          /* Assign a unique `id` to the listing. */
+          listing.id = `listing-${store.properties.id}`;
+          /* Assign the `item` class to each listing for styling. */
+          listing.className = 'item';
+
+          /* Add the link to the individual listing created above. */
+          const link = listing.appendChild(document.createElement('a'));
+          link.href = '#';
+          link.className = 'title';
+          link.id = `link-${store.properties.id}`;
+          link.innerHTML = `${store.properties.storeName}`;
+
+          /* Add details to the individual listing. */
+          const details = listing.appendChild(document.createElement('div'));
+          details.innerHTML = `${store.properties.address}`;
+          /**details.innerHTML += ` &middot; ${store.properties.city}`;**/
+
+          /**
+           * Listen to the element and when it is clicked, do four things:
+           * 1. Update the `currentFeature` to the store associated with the clicked link
+           * 2. Fly to the point
+           * 3. Close all other popups and display popup for clicked store
+           * 4. Highlight listing in sidebar (and remove highlight for all other listings)
+           **/
+          link.addEventListener('click', function () {
+            for (const feature of stores.features) {
+              if (this.id === `link-${feature.properties.id}`) {
+                flyToStore(feature);
+                createPopUp(feature);
+              }
+            }
+            const activeItem = document.getElementsByClassName('active');
+            if (activeItem[0]) {
+              activeItem[0].classList.remove('active');
+            }
+            this.parentNode.classList.add('active');
+          });
+        }
+      }
+
+      map.addControl(new mapboxgl.NavigationControl());
+
+      /**
+       * Use Mapbox GL JS's `flyTo` to move the camera smoothly
+       * a given center point.
+       **/
+      function flyToStore(currentFeature) {
+        map.flyTo({
+          center: currentFeature.geometry.coordinates,
+          zoom: 15
+        });
+      }
+
+      /**
+       * Create a Mapbox GL JS `Popup`.
+       **/
+      function createPopUp(currentFeature) {
+        const popUps = document.getElementsByClassName('mapboxgl-popup');
+        if (popUps[0]) popUps[0].remove();
+        const popup = new mapboxgl.Popup({ closeOnClick: false })
+          .setLngLat(currentFeature.geometry.coordinates)
+.setHTML(
+            `<h3>${currentFeature.properties.storeName}</h3><h4>${currentFeature.properties.productType} <br> <br> <a href=${currentFeature.properties.addresslink} target="_blank"><font color="#0000FF">Click for more information</font></a></h4>`
+          )          .addTo(map);
+      }
+    </script>
+  </body>
+</html>
