@@ -720,6 +720,12 @@
             `<h3>${currentFeature.properties.storeName}</h3><h4>${currentFeature.properties.productType} <br> <br> <a href=${currentFeature.properties.addresslink} target="_blank"><font color="#0000FF">Click for more information</font></a></h4>`
           )          .addTo(map);
       }
+
+      /** Make the pop-ups clickable **/
+      map.on('click', function (e) {
+        var features = map.queryRenderedFeatures(e.point);
+        document.getElementById('features').innerHTML = JSON.stringify(features, null, 2);
+      });
     </script>
   </body>
 </html>
