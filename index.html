@@ -2,15 +2,16 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <title>Blank Slate Locator</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
       href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700"
       rel="stylesheet"
     />
     <!-- Mapbox GL JS -->
-    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js"></script>
     <link
-      href="https://api.tiles.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css"
+      href="https://api.tiles.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css"
       rel="stylesheet"
     />
     <!-- Geocoder plugin -->
@@ -48,6 +49,10 @@
         border-right: 1px solid rgb(0 0 0 / 25%);
       }
 
+      .pad2 {
+        padding: 20px;
+      }
+
       .map {
         position: absolute;
         left: 33.3333%;
@@ -56,12 +61,12 @@
         bottom: 0;
       }
 
-      h1 {
+     h1 {
         font-size: 22px;
         margin: 0;
         font-weight: 400;
         line-height: 20px;
-        padding: 20px 2px;
+        padding: 20px 3px 1px;
       }
 
       a {
@@ -76,22 +81,20 @@
       .heading {
         background: #fff;
         border-bottom: 1px solid #eee;
-        min-height: 60px;
-        line-height: 60px;
+        min-height: 10px;
+        line-height: 10px;
         padding: 0 10px;
         background-color: #fcb6d2;
         color: #fff;
       }
 
       .listings {
-        background-color: #fff;
         height: 100%;
-        overflow: auto;
-        padding-bottom: 60px;
+        overflow: scroll;
+        padding-bottom: 95px;
       }
 
       .listings .item {
-        display: block;
         border-bottom: 1px solid #eee;
         padding: 10px;
         text-decoration: none;
@@ -125,6 +128,8 @@
         height: 3px;
         border-left: 0;
         background: rgb(0 0 0 / 10%);
+        margin-top: -10px;
+        margin-bottom: 10px;
       }
 
       ::-webkit-scrollbar-track {
@@ -136,9 +141,17 @@
         border-radius: 0;
       }
 
+      .marker {
+        border: none;
+        cursor: pointer;
+        height: 56px;
+        width: 56px;
+        background-image: url('marker.png');
+      }
+
       /* Marker tweaks */
       .mapboxgl-popup {
-        padding-bottom: 10px;
+        padding-bottom: 50px;
       }
 
       .mapboxgl-popup-close-button {
@@ -151,17 +164,16 @@
           'Helvetica Neue',
           sans-serif;
         padding: 0;
-        width: 150px;
+        width: 180px;
       }
 
       .mapboxgl-popup-content h3 {
         background: #fcb6d2;
         color: #fff;
-        margin: 0;
+        margin: -15px 0 0;
         padding: 10px;
         border-radius: 3px 3px 0 0;
         font-weight: 700;
-        margin-top: -15px;
       }
 
       .mapboxgl-popup-content h4 {
@@ -201,6 +213,7 @@
     <div class="sidebar">
       <div class="heading">
         <h1>Blank Slate Product Locations</h1>
+        <h4>&nbspEnter your address to find the nearest distributor!</h4>
       </div>
       <div id="listings" class="listings"></div>
     </div>
@@ -448,8 +461,6 @@
         ]
       };
 
-
-
       /**
        * Assign a unique id to each store. You'll use this `id`
        * later to associate each point on the map with a listing
@@ -489,6 +500,7 @@
          */
         buildLocationList(stores);
         map.addControl(geocoder, 'top-left');
+        map.addControl(new mapboxgl.NavigationControl());
         addMarkers();
 
         /**
@@ -670,7 +682,13 @@
           /* Add details to the individual listing. */
           const details = listing.appendChild(document.createElement('div'));
           details.innerHTML = `${store.properties.address}`;
-          /**details.innerHTML += ` &middot; ${store.properties.city}`;**/
+          
+
+          if (store.properties.distance) {
+            const roundedDistance =
+              Math.round(store.properties.distance * 100) / 100;
+            details.innerHTML += `<div><strong>${roundedDistance} miles away</strong></div>`;
+          }
 
           /**
            * Listen to the element and when it is clicked, do four things:
@@ -695,8 +713,6 @@
         }
       }
 
-      map.addControl(new mapboxgl.NavigationControl());
-
       /**
        * Use Mapbox GL JS's `flyTo` to move the camera smoothly
        * a given center point.
@@ -720,7 +736,7 @@
             `<h3>${currentFeature.properties.storeName}</h3><h4>${currentFeature.properties.productType} <br> <br> <a href=${currentFeature.properties.addresslink} target="_blank"><font color="#0000FF">Click for more information</font></a></h4>`
           )          .addTo(map);
       }
-
+      
     </script>
   </body>
 </html>
